@@ -711,8 +711,7 @@ const TAKO = {
     sdk: any;
     collection: any;
   }) => {
-    // if (!sdk) return;
-    // console.log(collection);
+    if (!sdk) return;
     return await sdk.apis.item.getItemsByCollection({collection});
   },
   get_nft_data: async ({sdk, collection}: {sdk: any; collection: any}) => {
@@ -724,9 +723,11 @@ const TAKO = {
     try {
       if (!sdk) return;
       const result = await sdk.nft.createCollection(collectionRequest);
-      return result;
+      await result.tx.wait();
+      return result.address;
     } catch (error) {
       console.log(error);
+      return error;
     }
   },
   mint: async ({
@@ -738,14 +739,23 @@ const TAKO = {
     collection: any;
     data: any;
   }) => {
-    if (!sdk) return;
-    const mintAction = await sdk.nft.mint({
-      collectionId: collection,
-    });
-    const nft_data = await mintAction.submit(data);
+    try {
+      if (!sdk) return;
+      const mintAction = await sdk.nft
+        .mint({
+          collectionId: collection,
+        })
+        .catch((error: any) => {
+          console.log(error);
+        });
+      const nft_data = await mintAction.submit(data)
 
-    if (nft_data.type === MintType.OFF_CHAIN) {
-      return nft_data.itemId;
+      if (nft_data.type === MintType.ON_CHAIN) {
+        await nft_data.transaction.wait();
+      }
+      return await nft_data.itemId;
+    } catch (error) {
+      return error;
     }
   },
   sell_nft: async ({
@@ -763,7 +773,8 @@ const TAKO = {
     blockchain: string;
     currency: any;
   }) => {
-    // console.log(sdk, nft_id, amount, price, blockchain, currency);
+    console.log(sdk, nft_id, amount, price, blockchain, currency);
+    if (!sdk) return;
     const {
       supportedCurrencies, // list of currency types supported by the blockchain (ETH, ERC20 etc.)
       maxAmount, // max amount of the NFT that can be put on sale
@@ -771,31 +782,54 @@ const TAKO = {
       submit, // use this Action to submit information after user input
     } = await sdk.order.sell({itemId: nft_id});
     // if (amount <= maxAmount) {
-    // console.log(supportedCurrencies);
+    console.log(supportedCurrencies);
     const orderId = await submit({
       amount,
-      price: parseFloat(price.toString()),
-      currency: currency,
+      price: price,
+      currency:
+        blockchain == 'POLYGON' || blockchain == 'POLYGON'
+          ? {
+              '@type': 'ETH',
+              blockchain: blockchain,
+            }
+          : blockchain == 'TEZOS'
+          ? {
+              '@type': 'TEZ',
+              blockchain: blockchain,
+            }
+          : blockchain == ' FLOW'
+          ? {
+              '@type': 'FLOW',
+              blockchain: blockchain,
+            }
+          : {},
       originFees:
-        blockchain == 'ETHEREUM'
+        blockchain == 'POLYGON'
+          ? [
+              {
+                account: 'POLYGON:0x877728846bFB8332B03ac0769B87262146D777f3' as any,
+                value: 5,
+              },
+            ]
+          : blockchain == 'ETHEREUM'
           ? [
               {
                 account: 'ETHEREUM:0x877728846bFB8332B03ac0769B87262146D777f3' as any,
-                value: 100,
+                value: 5,
               },
             ]
           : blockchain == 'TEZOS'
           ? [
               {
                 account: 'TEZOS:tz1Q5duBxjCNy1c5Kba63Mf5Jqz9wyKqXFAk' as any,
-                value: 100,
+                value: 5,
               },
             ]
           : blockchain == ' FLOW'
           ? [
               {
                 account: 'FLOW:0x54607bd2c9da71d0' as any,
-                value: 100,
+                value: 5,
               },
             ]
           : [],

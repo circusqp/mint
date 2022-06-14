@@ -5,16 +5,17 @@ import {truncateAddress} from '../lib/moiWeb3';
 import TakoLink from './TakoLink';
 import WalletButton from './walletbutton';
 import WalletButtonItem from './walletbuttonitem';
-//@ts-ignore
-import TAKO from '@/src/tako';
-import SearchBar from './Searchbar';
 function Navbar() {
   const [show, setShow] = useState(false);
   const connection = React.useContext(ConnectorContext);
   const blockchain = connection.sdk?.wallet?.blockchain;
   const router = useRouter();
   const [address, setAddress] = React.useState('');
+  const [status, setStatus] = React.useState('');
   const [err, setErr] = React.useState<any>('');
+  React.useEffect(()=>{
+    setStatus(connection.state.status)
+  },[connection])
   return (
     <>
       <style jsx>{`
@@ -41,17 +42,23 @@ function Navbar() {
 
           <div className='h-100' title={connection.walletAddress}>
             <WalletButton
-              isConnected={connection.state.status === 'connected'}
+              isConnected={status !== 'disconnected'}
               onConnect={() => router.push('/connect')}
               onPress={() => setShow(!show)}
-              address={connection.walletAddress}
+              address={connection.walletAddress?.split(':')[1]}
             />
           </div>
         </div>
         {show && (
           <div
             className={`wallet-button-items d-flex flex-column bg-grey position-absolute end-0`}>
-
+<WalletButtonItem
+              text={`Create Contract`}
+              onPress={() => {
+                router.push('https://deploy.takolabs.io/');
+                setShow(false);
+              }}
+            />
             <WalletButtonItem
               text={`Disconnect`}
               onPress={() => {
